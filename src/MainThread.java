@@ -10,10 +10,12 @@ public class MainThread extends Thread{
 	private int num_fortuneSize=0;
 	private int num_table=0;
 	private int num_games=3;
+	private int firstClerksCount=0;
 	public final Semaphore dragonSemaphore;
 	public final Semaphore shopperSemaphore;
 	public final Semaphore clerkSemaphore;
-	public final Semaphore quittingSemaphore;
+	public Semaphore[] quittingSemaphore;
+	private boolean clerksShouldQuit=true;
 	
 	
 	// the run method calls the start method on all the other threads the main thread has created
@@ -39,7 +41,7 @@ public class MainThread extends Thread{
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
 		dragonSemaphore= new Semaphore(num_table,true);
-		quittingSemaphore=new Semaphore(0,true);
+		quittingSemaphore= new Semaphore[num_adv];
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -57,6 +59,7 @@ public class MainThread extends Thread{
 		for(int i =0; i<num_adv;i++)
 		{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
+			quittingSemaphore[i]= new Semaphore(0);
 		}
 		
 		dragon=new Dragon(this);
@@ -83,12 +86,47 @@ public class MainThread extends Thread{
 		if(deadCount==num_adv)return false;
 		return true;
 	}
-    public void advQuit(){
+	public int getAdvQuit(){return adventurersThatQuit;}
+    public void setAdvQuit()
+    {
     	adventurersThatQuit++;
     }
 	public boolean checkForAdvQuitters()
 	{
-		if (adventurersThatQuit==num_adv)return true;
-		return false;
+		if (adventurersThatQuit==num_adv-1)return false;
+		return true;
 	}
+	public boolean waitForClerks()
+	{
+		// im not sure why but this print line has to be here or the threads get stuck in a while loop. 
+		//I was told this may be caused by the fact that the thread thats in the loop doesn't know this method can get it out so the compiler makes it get stuck
+		System.out.print("");
+		if(firstClerksCount==num_clerk)return false;
+		return true;
+	}
+
+	public void firstClerks(Clerk clerk)
+	{
+		firstClerksCount++;
+		clerk.waitForCustomer();
+	}
+
+	public int getNum_adv()
+	{
+		return num_adv;
+	}
+
+	public int getNum_clerk() 
+	{
+		return num_clerk;
+	}
+	public boolean clerkQuitCheck(){
+		return clerksShouldQuit;
+	}
+	public void clerksShouldQuit() {
+		clerksShouldQuit=false;
+		
+	}
+
+	
 }

@@ -13,7 +13,6 @@ public class Adventurer extends Thread
 	private int chains;
 	private int earrings;
 	private int magicalRings,magicalNecklases,magicalEarrings;
-	private static ArrayList<Boolean> need_assistance = new ArrayList<Boolean>();
 	private MainThread mainThread;
 	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring,mainThread, and need_assitance variables
 	public Adventurer(int id, int fortuneSize, MainThread parentThread) throws Exception
@@ -23,7 +22,6 @@ public class Adventurer extends Thread
 		chains=getRandomInt()%4;
 		earrings=getRandomInt()%4;
 		adventurerId=id;				    
-		need_assistance.add(false);// The assistance array initializes to false
 		setName("Adventurer-"+(id+1));
 		setfortuneSize(fortuneSize);
 		mainThread= parentThread;
@@ -61,28 +59,38 @@ public class Adventurer extends Thread
 	public void run()
 	{
 		msg("has started");
+		while(mainThread.waitForClerks()){}
+		msg("sees that the clerks are now waiting for customers");
 		while(checkFortune())
 		{	
 			if(checkForCraftableItems())
 			{
 				goToShop();
-				//try {mainThread.customerSemaphore.acquire();}
-				//catch (InterruptedException e) {e.printStackTrace();}
 				shop();
 			}
+			giveTreasure(this);
 			// this if is so that we don't go to the dragon one last time after the adventurer makes his last piece of treasure
 			//goToDragonsCave();
 		}
-		if(mainThread.checkForAdvQuitters()!=true)
+		if(mainThread.checkForAdvQuitters())
 		{
-			mainThread.advQuit();
-			try {mainThread.quittingSemaphore.acquire();}
-			catch (InterruptedException e) {e.printStackTrace();}
+			System.out.println("");
+			msg("is done, but is now waiting for the other threads to end"+"\n");
+			mainThread.setAdvQuit();
+			enterQuittingSemaphore();
+			msg("is done "+"\n");
 		}
-		mainThread.quittingSemaphore.release();
-		msg("is done "+"\n");
+		else{endQuest();}
+		
 	}
 	
+	private void enterQuittingSemaphore()
+	{
+		try {mainThread.quittingSemaphore[mainThread.getAdvQuit()-1].acquire();} 
+		catch (InterruptedException e) {e.printStackTrace();}
+		
+	}
+
 	private void goToDragonsCave()
 	{
 		msg("has gone to the dragon's cave ");
@@ -142,11 +150,6 @@ public class Adventurer extends Thread
 		msg("has left the shop and has released the shopper semaphore");
 	}
 	
-//	public void getAssistance()
-//	{ 
-//		need_assistance.set(adventurerId,false);
-//	}
-	
 	private void makeMagicItems()
 	{
 		while(checkForCraftableItems())
@@ -191,5 +194,15 @@ public class Adventurer extends Thread
 		}
 		
 	}
-	
+	public void endQuest()
+	{
+		System.out.println("");
+		msg("has terminated as will now be releasing the rest of the threads in the order that they finished");
+		int num_adv=mainThread.getAdvQuit();
+		for(int i=0;i<num_adv;i++){
+		mainThread.quittingSemaphore[i].release();
+		}
+		mainThread.clerksShouldQuit();
+		mainThread.clerkSemaphore.release(mainThread.getNum_clerk());
+	}
 }

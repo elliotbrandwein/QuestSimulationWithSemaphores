@@ -19,11 +19,11 @@ public class Clerk extends Thread
 	{
 		msg("has been made");
 		// fix the while loop to terminate when the other threads are done, or maybe it doesn't end. look into this 
+		mainThread.firstClerks(this);
 		while(mainThread.checkForLivingAdventurers())
 		{   
-			try {mainThread.clerkSemaphore.acquire();}
-			catch (InterruptedException e) {e.printStackTrace();}
-			helpCustomers();	
+			if(mainThread.clerkQuitCheck())waitForCustomer();
+			if(mainThread.clerkQuitCheck())helpCustomers();
 		}
 		
 		msg("has terminated because there are no more adventurers"+"\n");
@@ -33,5 +33,11 @@ public class Clerk extends Thread
 	private void helpCustomers()
 	{
 		msg("has helped a customer");
+		//mainThread.clerkSemaphore.release();
+	}
+	public void waitForCustomer()
+	{
+		try {mainThread.clerkSemaphore.acquire();}
+		catch (InterruptedException e) {e.printStackTrace();}
 	}
 }
