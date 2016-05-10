@@ -11,10 +11,10 @@ public class MainThread extends Thread{
 	private int num_table=0;
 	private int num_games=3;
 	private int firstClerksCount=0;
-	public final Semaphore dragonSemaphore;
-	public final Semaphore shopperSemaphore;
-	public final Semaphore clerkSemaphore;
-	public Semaphore[] quittingSemaphore;
+	public  Semaphore dragonSemaphore;
+	public  Semaphore shopperSemaphore;
+	public  Semaphore clerkSemaphore;
+	public  Semaphore quittingSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -41,7 +41,7 @@ public class MainThread extends Thread{
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
 		dragonSemaphore= new Semaphore(num_table,true);
-		quittingSemaphore= new Semaphore[num_adv];
+		quittingSemaphore= new Semaphore(0,true);
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -59,7 +59,6 @@ public class MainThread extends Thread{
 		for(int i =0; i<num_adv;i++)
 		{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
-			quittingSemaphore[i]= new Semaphore(0);
 		}
 		
 		dragon=new Dragon(this);

@@ -77,16 +77,22 @@ public class Adventurer extends Thread
 			System.out.println("");
 			msg("is done, but is now waiting for the other threads to end"+"\n");
 			mainThread.setAdvQuit();
+			//enterQuittingSemaphore();
 			enterQuittingSemaphore();
+			releaseNextGuy();
 			msg("is done "+"\n");
 		}
 		else{endQuest();}
 		
 	}
 	
+	private void releaseNextGuy() {
+		mainThread.quittingSemaphore.release();
+		
+	}
 	private void enterQuittingSemaphore()
 	{
-		try {mainThread.quittingSemaphore[mainThread.getAdvQuit()-1].acquire();} 
+		try {mainThread.quittingSemaphore.acquire();} 
 		catch (InterruptedException e) {e.printStackTrace();}
 		
 	}
@@ -197,11 +203,9 @@ public class Adventurer extends Thread
 	public void endQuest()
 	{
 		System.out.println("");
-		msg("has terminated as will now be releasing the rest of the threads in the order that they finished");
+		msg("has terminated as will now be releasing the rest of the threads in the order that they finished"+"\n");
 		int num_adv=mainThread.getAdvQuit();
-		for(int i=0;i<num_adv;i++){
-		mainThread.quittingSemaphore[i].release();
-		}
+		releaseNextGuy();
 		mainThread.clerksShouldQuit();
 		mainThread.clerkSemaphore.release(mainThread.getNum_clerk());
 	}
