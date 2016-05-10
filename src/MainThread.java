@@ -17,6 +17,7 @@ public class MainThread extends Thread{
 	public  Semaphore quittingSemaphore;
 	private Semaphore quitCounterSemaphore;
 	private Semaphore firstClerksSemaphore;
+	private Semaphore clerksQuittingSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -40,6 +41,7 @@ public class MainThread extends Thread{
 		
 		// next we make the semaphores
 		// the amount of games played per round was not asked to be an input so i initialized it to 3.
+		clerksQuittingSemaphore = new Semaphore(1,true);
 		firstClerksSemaphore = new Semaphore(1,true);
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
@@ -140,12 +142,19 @@ public class MainThread extends Thread{
 	}
 	public boolean clerkQuitCheck()
 	{
-		return clerksShouldQuit;
+		Boolean returnValue =true;
+		try {clerksQuittingSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		returnValue = clerksShouldQuit;
+		clerksQuittingSemaphore.release();
+		return returnValue;
 	}
 	public void clerksShouldQuit()
 	{
+		try {clerksQuittingSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
 		clerksShouldQuit=false;
-		
+		clerksQuittingSemaphore.release();
 	}
 
 	
