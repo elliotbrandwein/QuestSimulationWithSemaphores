@@ -1,6 +1,5 @@
 public class Clerk extends Thread
 {
-	private static Object shopObject= new Object();
 	public static long time = System.currentTimeMillis();
 	private MainThread mainThread;
 	

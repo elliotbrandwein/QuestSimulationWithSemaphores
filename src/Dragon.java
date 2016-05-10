@@ -4,7 +4,6 @@ public class Dragon extends Thread
 
 	public static long time = System.currentTimeMillis();
 	private MainThread mainThread;
-	private Adventurer topPriorityAdventurer;
 	
 	public void msg(String m)
 	{

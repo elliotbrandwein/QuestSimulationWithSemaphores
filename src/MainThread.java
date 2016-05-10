@@ -15,6 +15,8 @@ public class MainThread extends Thread{
 	public  Semaphore shopperSemaphore;
 	public  Semaphore clerkSemaphore;
 	public  Semaphore quittingSemaphore;
+	private Semaphore quitCounterSemaphore;
+	private Semaphore firstClerksSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -38,10 +40,12 @@ public class MainThread extends Thread{
 		
 		// next we make the semaphores
 		// the amount of games played per round was not asked to be an input so i initialized it to 3.
+		firstClerksSemaphore = new Semaphore(1,true);
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
 		dragonSemaphore= new Semaphore(num_table,true);
 		quittingSemaphore= new Semaphore(0,true);
+		quitCounterSemaphore = new Semaphore(1,true);
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -85,29 +89,44 @@ public class MainThread extends Thread{
 		if(deadCount==num_adv)return false;
 		return true;
 	}
-	public int getAdvQuit(){return adventurersThatQuit;}
+	public int getAdvQuit()
+	{
+		return adventurersThatQuit;
+	}
+	
     public void setAdvQuit()
     {
+    	try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
     	adventurersThatQuit++;
+    	quitCounterSemaphore.release();
+    	
     }
 	public boolean checkForAdvQuitters()
 	{
-		if (adventurersThatQuit==num_adv-1)return false;
-		return true;
+		Boolean returnValue=true;
+		try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		if (adventurersThatQuit==num_adv-1)returnValue=false;
+		quitCounterSemaphore.release();
+		return returnValue;
 	}
 	public boolean waitForClerks()
 	{
-		// im not sure why but this print line has to be here or the threads get stuck in a while loop. 
-		//I was told this may be caused by the fact that the thread thats in the loop doesn't know this method can get it out so the compiler makes it get stuck
-		System.out.print("");
-		if(firstClerksCount==num_clerk)return false;
-		return true;
+		Boolean returnValue =true;
+		try {firstClerksSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		if(firstClerksCount==num_clerk)returnValue= false;
+		firstClerksSemaphore.release();
+		return returnValue;
 	}
 
 	public void firstClerks(Clerk clerk)
 	{
+		try {firstClerksSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
 		firstClerksCount++;
-		clerk.waitForCustomer();
+		firstClerksSemaphore.release();
 	}
 
 	public int getNum_adv()
@@ -119,10 +138,12 @@ public class MainThread extends Thread{
 	{
 		return num_clerk;
 	}
-	public boolean clerkQuitCheck(){
+	public boolean clerkQuitCheck()
+	{
 		return clerksShouldQuit;
 	}
-	public void clerksShouldQuit() {
+	public void clerksShouldQuit()
+	{
 		clerksShouldQuit=false;
 		
 	}
