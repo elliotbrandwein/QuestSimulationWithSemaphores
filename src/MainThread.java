@@ -1,8 +1,10 @@
+import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
 public class MainThread extends Thread{
 	private Clerk[] clerks;
 	private Adventurer[] adventurers;
+	private ArrayList<Adventurer> dragonTable = new ArrayList<Adventurer>();
 	private int adventurersThatQuit;
 	private Dragon dragon;
 	private int num_adv=0;
@@ -11,10 +13,15 @@ public class MainThread extends Thread{
 	private int num_table=0;
 	private int num_games=3;
 	private int firstClerksCount=0;
-	public  Semaphore dragonSemaphore;
+	public  Semaphore dragonTableSemaphore;
 	public  Semaphore shopperSemaphore;
 	public  Semaphore clerkSemaphore;
 	public  Semaphore quittingSemaphore;
+	private Semaphore quitCounterSemaphore;
+	private Semaphore firstClerksSemaphore;
+	private Semaphore clerksQuittingSemaphore;
+	private Semaphore useDragonTable;
+	public Semaphore leaveGameSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -38,10 +45,15 @@ public class MainThread extends Thread{
 		
 		// next we make the semaphores
 		// the amount of games played per round was not asked to be an input so i initialized it to 3.
+		clerksQuittingSemaphore = new Semaphore(1,true);
+		firstClerksSemaphore = new Semaphore(1,true);
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
-		dragonSemaphore= new Semaphore(num_table,true);
+		dragonTableSemaphore= new Semaphore(num_table,true);
 		quittingSemaphore= new Semaphore(0,true);
+		quitCounterSemaphore = new Semaphore(1,true);
+		useDragonTable = new Semaphore(1,true);
+		leaveGameSemaphore = new Semaphore(0,true);
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -61,12 +73,12 @@ public class MainThread extends Thread{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
 		}
 		
-		dragon=new Dragon(this);
+		dragon=new Dragon(this,num_games,num_tables);
 	}
 	public void initThreads()
 	{	
 		for(int i=0; i<num_adv;i++)
-		{
+		{ 
 			adventurers[i].start();
 		}
 		for(int i=0;i<num_clerk;i++)
@@ -85,33 +97,54 @@ public class MainThread extends Thread{
 		if(deadCount==num_adv)return false;
 		return true;
 	}
-	public int getAdvQuit(){return adventurersThatQuit;}
+	public int getAdvQuit()
+	{
+		int returnValue;
+		try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		returnValue= adventurersThatQuit;
+		quitCounterSemaphore.release();
+		return returnValue;
+	}
+	
     public void setAdvQuit()
     {
+    	try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
     	adventurersThatQuit++;
+    	quitCounterSemaphore.release();
+    	
     }
 	public boolean checkForAdvQuitters()
 	{
-		if (adventurersThatQuit==num_adv-1)return false;
-		return true;
+		Boolean returnValue=true;
+		try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		if (adventurersThatQuit==num_adv-1)returnValue=false;
+		quitCounterSemaphore.release();
+		return returnValue;
 	}
 	public boolean waitForClerks()
 	{
-		// im not sure why but this print line has to be here or the threads get stuck in a while loop. 
-		//I was told this may be caused by the fact that the thread thats in the loop doesn't know this method can get it out so the compiler makes it get stuck
-		System.out.print("");
-		if(firstClerksCount==num_clerk)return false;
-		return true;
+		Boolean returnValue =true;
+		try {firstClerksSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		if(firstClerksCount==num_clerk)returnValue= false;
+		firstClerksSemaphore.release();
+		return returnValue;
 	}
 
 	public void firstClerks(Clerk clerk)
 	{
+		try {firstClerksSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
 		firstClerksCount++;
-		clerk.waitForCustomer();
+		firstClerksSemaphore.release();
 	}
 
 	public int getNum_adv()
 	{
+	
 		return num_adv;
 	}
 
@@ -119,12 +152,65 @@ public class MainThread extends Thread{
 	{
 		return num_clerk;
 	}
-	public boolean clerkQuitCheck(){
-		return clerksShouldQuit;
+	public boolean clerkQuitCheck()
+	{
+		Boolean returnValue =true;
+		try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		returnValue = clerksShouldQuit;
+		clerksQuittingSemaphore.release();
+		return returnValue;
 	}
-	public void clerksShouldQuit() {
+	public void joinTable(Adventurer adv)
+	{
+		try {dragonTableSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		dragonTable.add(adv);
+		adv.msg("has joined table "+dragonTable.size());
+		useDragonTable.release();
+	}
+	public boolean startGame()
+	{
+		Boolean returnValue=false;
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		int advLeft=num_adv-adventurersThatQuit;
+		if(dragonTable.size()==num_table)returnValue=true;
+		if (advLeft<3){
+			System.out.println("we know there are only 2 left");
+			if(dragonTable.size()==advLeft) returnValue=true;
+		}
+		useDragonTable.release();
+		return returnValue;
+	}
+	public ArrayList<Adventurer> getPlayers()
+	{
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		ArrayList<Adventurer> DragonTable = dragonTable;
+		useDragonTable.release();
+		return DragonTable;
+	}
+	public void emptyTable()
+	{
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		for(int i=dragonTable.size(); i>0;i--)
+		{
+			dragonTable.remove(i-1);
+			leaveGameSemaphore.release();
+		}
+		dragonTableSemaphore.release(num_table);
+		useDragonTable.release();
+	}
+	public void clerksShouldQuit()
+	{
+		try {clerksQuittingSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
 		clerksShouldQuit=false;
-		
+		clerksQuittingSemaphore.release();
 	}
 
 	

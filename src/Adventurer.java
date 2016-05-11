@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.Random;
 
 
@@ -14,24 +13,20 @@ public class Adventurer extends Thread
 	private int earrings;
 	private int magicalRings,magicalNecklases,magicalEarrings;
 	private MainThread mainThread;
-	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring,mainThread, and need_assitance variables
+	private Boolean hasWon=false;
+	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring, and the mainThread
 	public Adventurer(int id, int fortuneSize, MainThread parentThread) throws Exception
 	{
 		stones=getRandomInt()%4;
 		rings=getRandomInt()%4;
 		chains=getRandomInt()%4;
 		earrings=getRandomInt()%4;
-		adventurerId=id;				    
-		setName("Adventurer-"+(id+1));
+		adventurerId=id+1;				    
+		setName("Adventurer-"+(adventurerId));
 		setfortuneSize(fortuneSize);
 		mainThread= parentThread;
 	}
 	
-	// This constructor is used in the mainThread so it can create an Adventurer pointer
-	public Adventurer()
-	{
-	
-	}
 	
 	private int getRandomInt()
 	{
@@ -68,16 +63,21 @@ public class Adventurer extends Thread
 				goToShop();
 				shop();
 			}
-			giveTreasure(this);
-			// this if is so that we don't go to the dragon one last time after the adventurer makes his last piece of treasure
 			//goToDragonsCave();
+			if(hasWon)
+			{
+				giveTreasure(this);
+				resetHasWon();
+			}
+			giveTreasure(this);
 		}
+		
+		// the if part of the run will make the thread block if there are still adventurers left. The else will call the endQuest() method and terminate all the running threads. 
 		if(mainThread.checkForAdvQuitters())
 		{
 			System.out.println("");
 			msg("is done, but is now waiting for the other threads to end"+"\n");
 			mainThread.setAdvQuit();
-			//enterQuittingSemaphore();
 			enterQuittingSemaphore();
 			releaseNextGuy();
 			msg("is done "+"\n");
@@ -86,30 +86,26 @@ public class Adventurer extends Thread
 		
 	}
 	
-	private void releaseNextGuy() {
+	private void releaseNextGuy()
+	{
 		mainThread.quittingSemaphore.release();
-		
 	}
 	private void enterQuittingSemaphore()
 	{
 		try {mainThread.quittingSemaphore.acquire();} 
 		catch (InterruptedException e) {e.printStackTrace();}
-		
 	}
 
 	private void goToDragonsCave()
 	{
-		msg("has gone to the dragon's cave ");
-		try
-		{
-			sleep(100000);
-		} 
-		catch (InterruptedException e)
-		{
-			// the adventurer will only wake if they win.
-			giveTreasure(this);	
+		msg("has gone to the dragon to try to join a table ");
+		mainThread.joinTable(this);
+		try {
+			mainThread.leaveGameSemaphore.acquire();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
-		
 	}
 	
 	
@@ -144,7 +140,7 @@ public class Adventurer extends Thread
 		}	
 	}
 
-	private synchronized void shop() 
+	private void shop() 
 	{
 		msg("has entered the shop and is about to try to aquire from the customer semaphore");
 		try {mainThread.shopperSemaphore.acquire();}
@@ -183,7 +179,14 @@ public class Adventurer extends Thread
 			}
 		}
 	}
-	
+	public  void hasWon()
+	{
+		hasWon=true;
+	}
+	private void resetHasWon()
+	{
+		hasWon=false;
+	}
 	private void giveTreasure(Adventurer adventurer)
 	{
 		int prize=getRandomInt()%4;
@@ -203,8 +206,7 @@ public class Adventurer extends Thread
 	public void endQuest()
 	{
 		System.out.println("");
-		msg("has terminated as will now be releasing the rest of the threads in the order that they finished"+"\n");
-		int num_adv=mainThread.getAdvQuit();
+		msg("has terminated and will now be releasing the rest of the threads in the order that they finished"+"\n");
 		releaseNextGuy();
 		mainThread.clerksShouldQuit();
 		mainThread.clerkSemaphore.release(mainThread.getNum_clerk());
