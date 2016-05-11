@@ -3,6 +3,7 @@ import java.util.concurrent.Semaphore;
 public class MainThread extends Thread{
 	private Clerk[] clerks;
 	private Adventurer[] adventurers;
+	private LinkedQueue<Adventurer> dragonTable = new LinkedQueue<Adventurer>();
 	private int adventurersThatQuit;
 	private Dragon dragon;
 	private int num_adv=0;
@@ -11,7 +12,7 @@ public class MainThread extends Thread{
 	private int num_table=0;
 	private int num_games=3;
 	private int firstClerksCount=0;
-	public  Semaphore dragonSemaphore;
+	public  Semaphore dragonTableSemaphore;
 	public  Semaphore shopperSemaphore;
 	public  Semaphore clerkSemaphore;
 	public  Semaphore quittingSemaphore;
@@ -45,7 +46,7 @@ public class MainThread extends Thread{
 		firstClerksSemaphore = new Semaphore(1,true);
 		shopperSemaphore= new Semaphore(num_clerk,true);
 		clerkSemaphore= new Semaphore(0,true);	
-		dragonSemaphore= new Semaphore(num_table,true);
+		dragonTableSemaphore= new Semaphore(num_table,true);
 		quittingSemaphore= new Semaphore(0,true);
 		quitCounterSemaphore = new Semaphore(1,true);
 		
@@ -67,12 +68,12 @@ public class MainThread extends Thread{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
 		}
 		
-		dragon=new Dragon(this);
+		dragon=new Dragon(this,num_table,num_games);
 	}
 	public void initThreads()
 	{	
 		for(int i=0; i<num_adv;i++)
-		{
+		{ 
 			adventurers[i].start();
 		}
 		for(int i=0;i<num_clerk;i++)
@@ -93,7 +94,12 @@ public class MainThread extends Thread{
 	}
 	public int getAdvQuit()
 	{
-		return adventurersThatQuit;
+		int returnValue;
+		try {quitCounterSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		returnValue= adventurersThatQuit;
+		quitCounterSemaphore.release();
+		return returnValue;
 	}
 	
     public void setAdvQuit()
@@ -148,6 +154,22 @@ public class MainThread extends Thread{
 		returnValue = clerksShouldQuit;
 		clerksQuittingSemaphore.release();
 		return returnValue;
+	}
+	public void joinTable(Adventurer adv)
+	{
+		try {dragonTableSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		dragonTable.enqueue(adv);
+		adv.msg("has joined table"+dragonTable.size());
+	}
+	public void leaveTable()
+	{
+		int tableSize=dragonTable.size();
+		for(int i=0; i<tableSize; i++)
+		{
+			dragonTable.dequeue();
+		}
+		dragonTableSemaphore.release(tableSize);
 	}
 	public void clerksShouldQuit()
 	{

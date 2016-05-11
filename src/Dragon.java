@@ -4,14 +4,18 @@ public class Dragon extends Thread
 
 	public static long time = System.currentTimeMillis();
 	private MainThread mainThread;
+	private int numGames;
+	private int numTables;
 	
 	public void msg(String m)
 	{
 	System.out.println("["+(System.currentTimeMillis()-time)+"] "+getName()+":"+m);
 	}
 	
-	public Dragon(MainThread parentThread)
+	public Dragon(MainThread parentThread, int num_tables, int num_games)
 	{
+		numTables=num_tables;
+		numGames=num_games;
 		mainThread=parentThread;
 		setName("Dragon");
 	}

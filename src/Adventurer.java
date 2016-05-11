@@ -13,7 +13,7 @@ public class Adventurer extends Thread
 	private int earrings;
 	private int magicalRings,magicalNecklases,magicalEarrings;
 	private MainThread mainThread;
-	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring,mainThread, and need_assitance variables
+	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring, and the mainThread
 	public Adventurer(int id, int fortuneSize, MainThread parentThread) throws Exception
 	{
 		stones=getRandomInt()%4;
@@ -26,11 +26,6 @@ public class Adventurer extends Thread
 		mainThread= parentThread;
 	}
 	
-	// This constructor is used in the mainThread so it can create an Adventurer pointer
-	public Adventurer()
-	{
-	
-	}
 	
 	private int getRandomInt()
 	{
@@ -67,7 +62,7 @@ public class Adventurer extends Thread
 				goToShop();
 				shop();
 			}
-				giveTreasure(this);
+			giveTreasure(this);
 			//goToDragonsCave();
 		}
 		
@@ -86,22 +81,20 @@ public class Adventurer extends Thread
 		
 	}
 	
-	private void releaseNextGuy() {
+	private void releaseNextGuy()
+	{
 		mainThread.quittingSemaphore.release();
-		
 	}
 	private void enterQuittingSemaphore()
 	{
 		try {mainThread.quittingSemaphore.acquire();} 
 		catch (InterruptedException e) {e.printStackTrace();}
-		
 	}
 
 	private void goToDragonsCave()
 	{
-		msg("has gone to the dragon's cave ");
-		
-		
+		msg("has gone to the dragon to try to join a table ");
+		mainThread.joinTable(this);
 	}
 	
 	
@@ -136,7 +129,7 @@ public class Adventurer extends Thread
 		}	
 	}
 
-	private synchronized void shop() 
+	private void shop() 
 	{
 		msg("has entered the shop and is about to try to aquire from the customer semaphore");
 		try {mainThread.shopperSemaphore.acquire();}
