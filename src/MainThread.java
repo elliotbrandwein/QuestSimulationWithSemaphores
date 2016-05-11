@@ -1,9 +1,10 @@
+import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 
 public class MainThread extends Thread{
 	private Clerk[] clerks;
 	private Adventurer[] adventurers;
-	private LinkedQueue<Adventurer> dragonTable = new LinkedQueue<Adventurer>();
+	private ArrayList<Adventurer> dragonTable = new ArrayList<Adventurer>();
 	private int adventurersThatQuit;
 	private Dragon dragon;
 	private int num_adv=0;
@@ -19,6 +20,8 @@ public class MainThread extends Thread{
 	private Semaphore quitCounterSemaphore;
 	private Semaphore firstClerksSemaphore;
 	private Semaphore clerksQuittingSemaphore;
+	private Semaphore useDragonTable;
+	public Semaphore leaveGameSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -49,6 +52,8 @@ public class MainThread extends Thread{
 		dragonTableSemaphore= new Semaphore(num_table,true);
 		quittingSemaphore= new Semaphore(0,true);
 		quitCounterSemaphore = new Semaphore(1,true);
+		useDragonTable = new Semaphore(1,true);
+		leaveGameSemaphore = new Semaphore(0,true);
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -68,7 +73,7 @@ public class MainThread extends Thread{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
 		}
 		
-		dragon=new Dragon(this,num_table,num_games);
+		dragon=new Dragon(this,num_games,num_tables);
 	}
 	public void initThreads()
 	{	
@@ -139,6 +144,7 @@ public class MainThread extends Thread{
 
 	public int getNum_adv()
 	{
+	
 		return num_adv;
 	}
 
@@ -149,7 +155,7 @@ public class MainThread extends Thread{
 	public boolean clerkQuitCheck()
 	{
 		Boolean returnValue =true;
-		try {clerksQuittingSemaphore.acquire();} 
+		try {quitCounterSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
 		returnValue = clerksShouldQuit;
 		clerksQuittingSemaphore.release();
@@ -159,17 +165,45 @@ public class MainThread extends Thread{
 	{
 		try {dragonTableSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
-		dragonTable.enqueue(adv);
-		adv.msg("has joined table"+dragonTable.size());
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		dragonTable.add(adv);
+		adv.msg("has joined table "+dragonTable.size());
+		useDragonTable.release();
 	}
-	public void leaveTable()
+	public boolean startGame()
 	{
-		int tableSize=dragonTable.size();
-		for(int i=0; i<tableSize; i++)
-		{
-			dragonTable.dequeue();
+		Boolean returnValue=false;
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		int advLeft=num_adv-adventurersThatQuit;
+		if(dragonTable.size()==num_table)returnValue=true;
+		if (advLeft<3){
+			System.out.println("we know there are only 2 left");
+			if(dragonTable.size()==advLeft) returnValue=true;
 		}
-		dragonTableSemaphore.release(tableSize);
+		useDragonTable.release();
+		return returnValue;
+	}
+	public ArrayList<Adventurer> getPlayers()
+	{
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		ArrayList<Adventurer> DragonTable = dragonTable;
+		useDragonTable.release();
+		return DragonTable;
+	}
+	public void emptyTable()
+	{
+		try {useDragonTable.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		for(int i=dragonTable.size(); i>0;i--)
+		{
+			dragonTable.remove(i-1);
+			leaveGameSemaphore.release();
+		}
+		dragonTableSemaphore.release(num_table);
+		useDragonTable.release();
 	}
 	public void clerksShouldQuit()
 	{

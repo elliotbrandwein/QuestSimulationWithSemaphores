@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.Random;
 public class Dragon extends Thread
 {
@@ -6,16 +7,15 @@ public class Dragon extends Thread
 	private MainThread mainThread;
 	private int numGames;
 	private int numTables;
-	
 	public void msg(String m)
 	{
 	System.out.println("["+(System.currentTimeMillis()-time)+"] "+getName()+":"+m);
 	}
 	
-	public Dragon(MainThread parentThread, int num_tables, int num_games)
+	public Dragon(MainThread parentThread, int num_games, int num_tables)
 	{
-		numTables=num_tables;
 		numGames=num_games;
+		numTables=num_tables;
 		mainThread=parentThread;
 		setName("Dragon");
 	}
@@ -25,8 +25,26 @@ public class Dragon extends Thread
 		// need to change the while loop so that it will terminate once the other threads are done, 
 		while(mainThread.checkForLivingAdventurers())
 		{	
-			
-			
+			if(mainThread.startGame())
+			{
+				msg("has started a round of gaming with players");
+				Boolean playerWon=false;
+				ArrayList<Adventurer> players= mainThread.getPlayers();
+				for(int i=0; i<numGames;i++)
+				{
+					for(int j=0;j<players.size();j++)
+					{
+						playerWon=playGame();
+						if(playerWon)
+						{
+							players.get(j).msg("has beat the dragon durring round"+ (j+1));
+							players.get(j).hasWon();
+						}
+					}
+				}
+				msg("has finished a round of gaming with players");
+				mainThread.emptyTable();
+			}	
 		}
 		msg(" has terminated because there are no more adventurers"+"\n");
 	}
@@ -48,7 +66,7 @@ public class Dragon extends Thread
 				game=false;
 				output=false;
 			}
-			if(dragonDiceRoll>humanDiceRoll)
+			if(dragonDiceRoll<humanDiceRoll)
 			{
 				game=false;
 				output=true;
