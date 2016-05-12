@@ -20,8 +20,8 @@ public class MainThread extends Thread{
 	private Semaphore quitCounterSemaphore;
 	private Semaphore firstClerksSemaphore;
 	private Semaphore clerksQuittingSemaphore;
-	private Semaphore useDragonTable;
-	public Semaphore leaveGameSemaphore;
+	private Semaphore playDragonTableSemaphore;
+	private Semaphore joinTableSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -52,8 +52,8 @@ public class MainThread extends Thread{
 		dragonTableSemaphore= new Semaphore(num_table,true);
 		quittingSemaphore= new Semaphore(0,true);
 		quitCounterSemaphore = new Semaphore(1,true);
-		useDragonTable = new Semaphore(1,true);
-		leaveGameSemaphore = new Semaphore(0,true);
+		playDragonTableSemaphore = new Semaphore(0,true);
+		joinTableSemaphore = new Semaphore(1,true);
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -73,7 +73,7 @@ public class MainThread extends Thread{
 			adventurers[i]= new Adventurer(i,num_fortuneSize,this);
 		}
 		
-		dragon=new Dragon(this,num_games,num_tables);
+		dragon=new Dragon(this,num_table,num_games);
 	}
 	public void initThreads()
 	{	
@@ -144,7 +144,6 @@ public class MainThread extends Thread{
 
 	public int getNum_adv()
 	{
-	
 		return num_adv;
 	}
 
@@ -155,7 +154,7 @@ public class MainThread extends Thread{
 	public boolean clerkQuitCheck()
 	{
 		Boolean returnValue =true;
-		try {quitCounterSemaphore.acquire();} 
+		try {clerksQuittingSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
 		returnValue = clerksShouldQuit;
 		clerksQuittingSemaphore.release();
@@ -163,47 +162,42 @@ public class MainThread extends Thread{
 	}
 	public void joinTable(Adventurer adv)
 	{
+		// this will let the first 3 people attempt to join the table, the other adventurers should block
 		try {dragonTableSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
-		try {useDragonTable.acquire();} 
+		// this will block each adventurer that tries to join a table, and it will unlock once its added in the next line
+		try {joinTableSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
 		dragonTable.add(adv);
-		adv.msg("has joined table "+dragonTable.size());
-		useDragonTable.release();
-	}
-	public boolean startGame()
-	{
-		Boolean returnValue=false;
-		try {useDragonTable.acquire();} 
-    	catch (InterruptedException e) {e.printStackTrace();}
-		int advLeft=num_adv-adventurersThatQuit;
-		if(dragonTable.size()==num_table)returnValue=true;
-		if (advLeft<3){
-			System.out.println("we know there are only 2 left");
-			if(dragonTable.size()==advLeft) returnValue=true;
-		}
-		useDragonTable.release();
-		return returnValue;
-	}
-	public ArrayList<Adventurer> getPlayers()
-	{
-		try {useDragonTable.acquire();} 
-    	catch (InterruptedException e) {e.printStackTrace();}
-		ArrayList<Adventurer> DragonTable = dragonTable;
-		useDragonTable.release();
-		return DragonTable;
-	}
-	public void emptyTable()
-	{
-		try {useDragonTable.acquire();} 
-    	catch (InterruptedException e) {e.printStackTrace();}
-		for(int i=dragonTable.size(); i>0;i--)
+		// we release the semaphore for joining a table, but no the permission to join in the first place
+		joinTableSemaphore.release();
+		adv.msg("has joined a table");
+		if(dragonTable.size()==num_table)
 		{
-			dragonTable.remove(i-1);
-			leaveGameSemaphore.release();
+			dragon.msg("the table is now full, the dragon will now begin playing");
 		}
+		// this should make the players at the table block
+		try {playDragonTableSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+	}
+	public void leaveTable()
+	{
+		// this should never actually make the method block, but its here for concurrency 
+		try {joinTableSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		dragonTable.clear();
+		joinTableSemaphore.release();
+		playDragonTableSemaphore.release(num_table);	
 		dragonTableSemaphore.release(num_table);
-		useDragonTable.release();
+	}
+	public Adventurer getAdvFromTable(int i)
+	{
+		return dragonTable.get(i);
+	}
+	public boolean playGameCheck()
+	{
+		if(dragonTable.size()==3)return true;
+		return false;
 	}
 	public void clerksShouldQuit()
 	{

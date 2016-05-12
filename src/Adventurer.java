@@ -13,7 +13,6 @@ public class Adventurer extends Thread
 	private int earrings;
 	private int magicalRings,magicalNecklases,magicalEarrings;
 	private MainThread mainThread;
-	private Boolean hasWon=false;
 	//constructor will set the fortuneSize,adventurerId,stones,rings,chains,earring, and the mainThread
 	public Adventurer(int id, int fortuneSize, MainThread parentThread) throws Exception
 	{
@@ -63,13 +62,8 @@ public class Adventurer extends Thread
 				goToShop();
 				shop();
 			}
-			//goToDragonsCave();
-			if(hasWon)
-			{
-				giveTreasure(this);
-				resetHasWon();
-			}
-			giveTreasure(this);
+			
+			goToDragonsCave();
 		}
 		
 		// the if part of the run will make the thread block if there are still adventurers left. The else will call the endQuest() method and terminate all the running threads. 
@@ -78,6 +72,7 @@ public class Adventurer extends Thread
 			System.out.println("");
 			msg("is done, but is now waiting for the other threads to end"+"\n");
 			mainThread.setAdvQuit();
+			//enterQuittingSemaphore();
 			enterQuittingSemaphore();
 			releaseNextGuy();
 			msg("is done "+"\n");
@@ -100,12 +95,6 @@ public class Adventurer extends Thread
 	{
 		msg("has gone to the dragon to try to join a table ");
 		mainThread.joinTable(this);
-		try {
-			mainThread.leaveGameSemaphore.acquire();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
 	}
 	
 	
@@ -179,15 +168,8 @@ public class Adventurer extends Thread
 			}
 		}
 	}
-	public  void hasWon()
-	{
-		hasWon=true;
-	}
-	private void resetHasWon()
-	{
-		hasWon=false;
-	}
-	private void giveTreasure(Adventurer adventurer)
+	
+	public void giveTreasure(Adventurer adventurer)
 	{
 		int prize=getRandomInt()%4;
 		switch(prize)

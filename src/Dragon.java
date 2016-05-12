@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.Random;
 public class Dragon extends Thread
 {
@@ -7,17 +6,21 @@ public class Dragon extends Thread
 	private MainThread mainThread;
 	private int numGames;
 	private int numTables;
+	private Boolean[] winners;
+	
 	public void msg(String m)
 	{
 	System.out.println("["+(System.currentTimeMillis()-time)+"] "+getName()+":"+m);
 	}
 	
-	public Dragon(MainThread parentThread, int num_games, int num_tables)
+	public Dragon(MainThread parentThread, int num_tables, int num_games)
 	{
-		numGames=num_games;
 		numTables=num_tables;
+		winners = new Boolean[num_tables];
+		numGames=num_games;
 		mainThread=parentThread;
 		setName("Dragon");
+		for(int i =0;i<num_tables;i++){winners[i]=false;}
 	}
 	public void run()
 	{
@@ -25,28 +28,47 @@ public class Dragon extends Thread
 		// need to change the while loop so that it will terminate once the other threads are done, 
 		while(mainThread.checkForLivingAdventurers())
 		{	
-			if(mainThread.startGame())
+			if(mainThread.playGameCheck())
 			{
-				msg("has started a round of gaming with players");
-				Boolean playerWon=false;
-				ArrayList<Adventurer> players= mainThread.getPlayers();
-				for(int i=0; i<numGames;i++)
-				{
-					for(int j=0;j<players.size();j++)
-					{
-						playerWon=playGame();
-						if(playerWon)
-						{
-							players.get(j).msg("has beat the dragon durring round"+ (j+1));
-							players.get(j).hasWon();
-						}
-					}
-				}
-				msg("has finished a round of gaming with players");
-				mainThread.emptyTable();
-			}	
+				msg("is now playing a game");
+				playGames();
+				giveTreasureToWinners();
+				emptyTable();
+			}
+			
 		}
 		msg(" has terminated because there are no more adventurers"+"\n");
+	}
+	private void emptyTable()
+	{
+		mainThread.leaveTable();	
+	}
+
+	private void playGames() {
+		for(int i=0;i<numGames;i++)
+		{
+			for(int j=0; j<numTables;j++)
+			{
+				if(playGame())
+				{
+					winners[j]=true;
+				}
+			}
+		}
+		
+	}
+
+	private void giveTreasureToWinners()
+	{
+		for(int i=0; i<numTables;i++)
+		{
+			if(winners[i])
+			{
+				mainThread.getAdvFromTable(i).giveTreasure(mainThread.getAdvFromTable(i));
+				mainThread.getAdvFromTable(i).msg("has won and got treasure");
+				winners[i]=false;
+			}
+		}
 	}
 	private int getRandomInt()
 	{
