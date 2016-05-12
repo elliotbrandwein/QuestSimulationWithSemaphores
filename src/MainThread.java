@@ -12,6 +12,7 @@ public class MainThread extends Thread{
 	private int num_fortuneSize=0;
 	private int num_table=0;
 	private int num_games=3;
+	private int howManyPlayers=0;
 	private int firstClerksCount=0;
 	public  Semaphore dragonTableSemaphore;
 	public  Semaphore shopperSemaphore;
@@ -22,6 +23,7 @@ public class MainThread extends Thread{
 	private Semaphore clerksQuittingSemaphore;
 	private Semaphore playDragonTableSemaphore;
 	private Semaphore joinTableSemaphore;
+	private Semaphore howManyPlayersSemaphore;
 	private boolean clerksShouldQuit=true;
 	
 	
@@ -45,15 +47,18 @@ public class MainThread extends Thread{
 		
 		// next we make the semaphores
 		// the amount of games played per round was not asked to be an input so i initialized it to 3.
-		clerksQuittingSemaphore = new Semaphore(1,true);
-		firstClerksSemaphore = new Semaphore(1,true);
-		shopperSemaphore= new Semaphore(num_clerk,true);
-		clerkSemaphore= new Semaphore(0,true);	
-		dragonTableSemaphore= new Semaphore(num_table,true);
-		quittingSemaphore= new Semaphore(0,true);
-		quitCounterSemaphore = new Semaphore(1,true);
-		playDragonTableSemaphore = new Semaphore(0,true);
 		joinTableSemaphore = new Semaphore(1,true);
+		quitCounterSemaphore = new Semaphore(1,true);
+		firstClerksSemaphore = new Semaphore(1,true);
+		clerksQuittingSemaphore = new Semaphore(1,true);
+		howManyPlayersSemaphore = new Semaphore(1,true);
+		clerkSemaphore= new Semaphore(0,true);	
+		quittingSemaphore= new Semaphore(0,true);
+		playDragonTableSemaphore = new Semaphore(0,true);
+		dragonTableSemaphore= new Semaphore(num_table,true);
+		shopperSemaphore= new Semaphore(num_clerk);
+		
+		
 		
 		// next we make the arrays where we will store the clerk and adventurer threads, as well as other shared variables
 		clerks= new Clerk[num_clerk];
@@ -170,25 +175,32 @@ public class MainThread extends Thread{
     	catch (InterruptedException e) {e.printStackTrace();}
 		dragonTable.add(adv);
 		// we release the semaphore for joining a table, but no the permission to join in the first place
+		adv.msg("has joined a table " + dragonTable.size());
 		joinTableSemaphore.release();
-		adv.msg("has joined a table");
 		if(dragonTable.size()==num_table)
 		{
+			try {howManyPlayersSemaphore.acquire();} 
+	    	catch (InterruptedException e) {e.printStackTrace();}
+			howManyPlayers=num_table;
+			howManyPlayersSemaphore.release();
 			dragon.msg("the table is now full, the dragon will now begin playing");
 		}
 		// this should make the players at the table block
 		try {playDragonTableSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
 	}
-	public void leaveTable()
+	public void leaveTable(int numPlayers)
 	{
 		// this should never actually make the method block, but its here for concurrency 
 		try {joinTableSemaphore.acquire();} 
     	catch (InterruptedException e) {e.printStackTrace();}
+		try {howManyPlayersSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
 		dragonTable.clear();
 		joinTableSemaphore.release();
-		playDragonTableSemaphore.release(num_table);	
-		dragonTableSemaphore.release(num_table);
+		playDragonTableSemaphore.release(howManyPlayers);	
+		dragonTableSemaphore.release(howManyPlayers);
+		howManyPlayersSemaphore.release();
 	}
 	public Adventurer getAdvFromTable(int i)
 	{
@@ -196,7 +208,17 @@ public class MainThread extends Thread{
 	}
 	public boolean playGameCheck()
 	{
-		if(dragonTable.size()==3)return true;
+		if(dragonTable.size()==num_games)return true;
+		int notEnoughLeft= num_adv-adventurersThatQuit;
+		if(notEnoughLeft<num_games && notEnoughLeft==dragonTable.size())
+		{
+			try {howManyPlayersSemaphore.acquire();} 
+	    	catch (InterruptedException e) {e.printStackTrace();}
+			howManyPlayers=notEnoughLeft;
+			howManyPlayersSemaphore.release();
+			dragon.msg("the table now has all the adventurers that are left, so the dragon will now begin playing");
+			return true;
+		}
 		return false;
 	}
 	public void clerksShouldQuit()
@@ -205,6 +227,14 @@ public class MainThread extends Thread{
     	catch (InterruptedException e) {e.printStackTrace();}
 		clerksShouldQuit=false;
 		clerksQuittingSemaphore.release();
+	}
+
+	public int getHowManyPLayers() {
+		try {howManyPlayersSemaphore.acquire();} 
+    	catch (InterruptedException e) {e.printStackTrace();}
+		int returnValue=howManyPlayers;
+		howManyPlayersSemaphore.release();
+		return returnValue;
 	}
 
 	

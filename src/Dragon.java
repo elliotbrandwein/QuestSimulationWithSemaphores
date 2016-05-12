@@ -5,7 +5,6 @@ public class Dragon extends Thread
 	public static long time = System.currentTimeMillis();
 	private MainThread mainThread;
 	private int numGames;
-	private int numTables;
 	private Boolean[] winners;
 	
 	public void msg(String m)
@@ -15,7 +14,6 @@ public class Dragon extends Thread
 	
 	public Dragon(MainThread parentThread, int num_tables, int num_games)
 	{
-		numTables=num_tables;
 		winners = new Boolean[num_tables];
 		numGames=num_games;
 		mainThread=parentThread;
@@ -30,24 +28,26 @@ public class Dragon extends Thread
 		{	
 			if(mainThread.playGameCheck())
 			{
+				int players=mainThread.getHowManyPLayers();
 				msg("is now playing a game");
-				playGames();
-				giveTreasureToWinners();
-				emptyTable();
+				playGames(players);
+				giveTreasureToWinners(players);
+				emptyTable(players);
 			}
 			
 		}
 		msg(" has terminated because there are no more adventurers"+"\n");
 	}
-	private void emptyTable()
+	private void emptyTable(int numPlayers)
 	{
-		mainThread.leaveTable();	
+		mainThread.leaveTable(numPlayers);	
 	}
 
-	private void playGames() {
+	private void playGames(int numPlayers)
+	{
 		for(int i=0;i<numGames;i++)
 		{
-			for(int j=0; j<numTables;j++)
+			for(int j=0; j<numPlayers;j++)
 			{
 				if(playGame())
 				{
@@ -58,9 +58,9 @@ public class Dragon extends Thread
 		
 	}
 
-	private void giveTreasureToWinners()
+	private void giveTreasureToWinners(int numPlayers)
 	{
-		for(int i=0; i<numTables;i++)
+		for(int i=0; i<numPlayers;i++)
 		{
 			if(winners[i])
 			{
